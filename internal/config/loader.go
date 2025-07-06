@@ -20,12 +20,8 @@ func Get() *Config {
 			Port: os.Getenv("SERVER_PORT"),
 		},
 		Database: Database{
-			Host: os.Getenv("DB_HOST"),
-			Port: os.Getenv("DB_PORT"),
-			User: os.Getenv("DB_USER"),
-			Pass: os.Getenv("DB_PASS"),
-			Name: os.Getenv("DB_NAME"),
-			Tz: os.Getenv("DB_TZ"),
+			URL: os.Getenv("DB_URL"),
 		},
 	}
 }
+

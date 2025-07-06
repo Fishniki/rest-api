@@ -11,10 +11,5 @@ type Server struct {
 }
 
 type Database struct {
-	Host string
-	Port string
-	Name string
-	User string
-	Pass string
-	Tz string
+	URL string
 }

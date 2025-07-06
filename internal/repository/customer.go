@@ -2,33 +2,52 @@ package repository
 
 import (
 	"context"
+	"database/sql"
 	"rest-api/domain"
+	"time"
+
+	"github.com/doug-martin/goqu/v9"
 )
 
 type customerRepository struct {
+	db *goqu.Database
 }
 
-func NewCustomer() domain.CustomerRepository {
-	return &customerRepository{}
+func NewCustomer(con *sql.DB) domain.CustomerRepository {
+	return &customerRepository{
+		db: goqu.New("default", con),
+	}
 }
 
-func (cr customerRepository) FindAll(ctx context.Context) ([]domain.Customer, error){
-	panic("implement me")
+func (cr customerRepository) FindAll(ctx context.Context) (result []domain.Customer, err error){
+	dataset := cr.db.From("customers").Where(goqu.C("deleted_at").IsNull())
+	err = dataset.ScanStructsContext(ctx, &result)
+	return
 }
 
-func (cr customerRepository) FindByID(ctx context.Context, id string) (domain.Customer, error){
-	panic("implement me")
+func (cr customerRepository) FindByID(ctx context.Context, id string) (result domain.Customer, err error){
+	dataset := cr.db.From("customers").Where(goqu.C("deleted_at").IsNull(), goqu.C("customer_id").Eq(id))
+	_, err = dataset.ScanStructContext(ctx, &result)
+	return
 }
 
 func (cr customerRepository) Save(ctx context.Context, c *domain.Customer) error {
-	panic("implement me")
+	executor := cr.db.Insert("customers").Rows(c).Executor()
+	_, err := executor.ExecContext(ctx)
+	return err
 }
 
 func (cr customerRepository) Update(ctx context.Context, c *domain.Customer) error {
-	panic("implement me")
-}
+	executor := cr.db.Update("customers").Where(goqu.C("customer_id").Eq(c.ID)).Set(c).Executor()
+	_, err := executor.ExecContext(ctx)
+	return  err
+}																									
 
-func (cr customerRepository) Delete(ctx context.Context, id string) error {
-	panic("implement me")
+func (cr customerRepository) Delete(ctx context.Context, customer_id string) error {
+	executor := cr.db.Update("customers").Where(goqu.C("customer_id").Eq(customer_id)).
+	Set(goqu.Record{"deleted_at": sql.NullTime{Valid: true, Time: time.Now()}}).Executor()
+
+	_, err := executor.ExecContext(ctx)
+	return  err
 }
 
