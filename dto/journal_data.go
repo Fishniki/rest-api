@@ -1,0 +1,22 @@
+package dto
+
+type JournalData struct {
+	Id         string       `json:"id"`
+	BookStock  string       `json:"book_stock"`
+	Book       BookData     `json:"book"`
+	Customer   CustomerData `json:"customer"`
+	Status     string       `json:"status"`
+	BorrowedAt string       `json:"borrowed_at"`
+	ReturnedAt string       `json:"returned_at"`
+}
+
+type CreateJournalRequest struct {
+	BookId     string `json:"book_id" validate:"required"`
+	BookStock  string `json:"book_stock" validate:"required"`
+	CustomerId string `json:"customer_id" validate:"required"`
+}
+
+
+type ReturnJournalRequest struct{
+	JournalId string `json:"journal_id"`
+}
