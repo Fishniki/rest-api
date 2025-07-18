@@ -21,6 +21,7 @@ func NewBook(app *fiber.App, bookService domain.BookService, authMid fiber.Handl
 		bookService: bookService,
 	}
 
+
 	app.Get("/books", authMid, ba.Index)
 	app.Post("books", authMid, ba.Create)
 	app.Get("/books/:id", authMid, ba.Show)
