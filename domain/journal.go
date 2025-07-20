@@ -6,27 +6,25 @@ import (
 	"rest-api/dto"
 )
 
-
-
 const (
 	JournalStatusInProgres = "IN_PROGRESS"
-	JournalStatusCompled = "COMPLETED"
+	JournalStatusCompled   = "COMPLETED"
 )
 
-
 type Journal struct {
-	Id         string `json:"id"`
-	BookId     string `json:"book_id"`
-	StockCode  string `json:"stock_code"`
-	CustomerId string `json:"customer_id"`
-	Status     string `json:"status"`
-	BorrowedAt sql.NullTime `json:"borrowed_at"`
-	ReturnedAt sql.NullTime `json:"returned_at"`
+	Id         string       `db:"id"`
+	BookId     string       `db:"book_id"`
+	StockCode  string       `db:"stock_code"`
+	CustomerId string       `db:"customer_id"`
+	Status     string       `db:"status"`
+	DueAt      sql.NullTime `db:"due_at"`
+	BorrowedAt sql.NullTime `db:"borrowed_at"`
+	ReturnedAt sql.NullTime `db:"returned_at"`
 }
 
-type JournalSearch struct{
+type JournalSearch struct {
 	CustomerId string
-	Status string
+	Status     string
 }
 
 type JournalRepository interface {
@@ -35,7 +33,6 @@ type JournalRepository interface {
 	Save(ctx context.Context, journal *Journal) error
 	Update(ctx context.Context, journal *Journal) error
 }
-
 
 type JournalService interface {
 	Index(ctx context.Context, se JournalSearch) ([]dto.JournalData, error)

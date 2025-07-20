@@ -16,24 +16,26 @@ type journalService struct {
 	bookRepository      domain.BookRepository
 	bookStockRepository domain.BookStockRepository
 	customerRepository  domain.CustomerRepository
-}
+	chargeRepository    domain.ChargeRepository
+} 
 
 func NewJournal(journalRepository domain.JournalRepository,
 	bookRepository domain.BookRepository,
 	bookStockRepository domain.BookStockRepository,
-	customerRepository domain.CustomerRepository) domain.JournalService {
+	customerRepository domain.CustomerRepository,
+	chargeRepository domain.ChargeRepository) domain.JournalService {
 	return &journalService{
 		journalRepository:   journalRepository,
 		bookRepository:      bookRepository,
 		bookStockRepository: bookStockRepository,
-		customerRepository: customerRepository,
+		customerRepository:  customerRepository,
+		chargeRepository:    chargeRepository,
 	}
 }
 
-
 // Create implements domain.JournalService.
 func (j journalService) Create(ctx context.Context, req dto.CreateJournalRequest) error {
-	
+
 	book, err := j.bookRepository.FindByID(ctx, req.BookId)
 	if err != nil {
 		return err
@@ -52,16 +54,17 @@ func (j journalService) Create(ctx context.Context, req dto.CreateJournalRequest
 		return errors.New("data buku tidak di temukan")
 	}
 
-	if stock.Status != domain.BookStockStatusAvailable{
+	if stock.Status != domain.BookStockStatusAvailable {
 		return errors.New("stock buku sudah di pinjam sebelumnya")
 	}
 
 	journal := domain.Journal{
-		Id: uuid.NewString(),
-		BookId: req.BookId,
-		StockCode: req.BookStock,
+		Id:         uuid.NewString(),
+		BookId:     req.BookId,
+		StockCode:  req.BookStock,
 		CustomerId: req.CustomerId,
-		Status: domain.JournalStatusInProgres,
+		Status:     domain.JournalStatusInProgres,
+		DueAt:      sql.NullTime{Valid: true, Time: time.Now().Add(7 * 24 * time.Hour)},
 		BorrowedAt: sql.NullTime{Valid: true, Time: time.Now()},
 	}
 
@@ -73,15 +76,15 @@ func (j journalService) Create(ctx context.Context, req dto.CreateJournalRequest
 	stock.Status = domain.BookStockStatusBorrowed
 	stock.BorrowerAt = journal.BorrowedAt
 	stock.BorrowerId = sql.NullString{Valid: true, String: journal.CustomerId}
-	
-	return  j.bookStockRepository.Update(ctx, &stock)
+
+	return j.bookStockRepository.Update(ctx, &stock)
 
 }
 
 // Index implements domain.JournalService.
 func (j journalService) Index(ctx context.Context, se domain.JournalSearch) ([]dto.JournalData, error) {
-	
-	journals, err :=j.journalRepository.Find(ctx, se)
+
+	journals, err := j.journalRepository.Find(ctx, se)
 	if err != nil {
 		return nil, err
 	}
@@ -89,20 +92,20 @@ func (j journalService) Index(ctx context.Context, se domain.JournalSearch) ([]d
 	customerId := make([]string, 0)
 	bookId := make([]string, 0)
 
-	for _, v :=	range journals {
+	for _, v := range journals {
 		customerId = append(customerId, v.CustomerId)
 		bookId = append(bookId, v.BookId)
 	}
 
-	customers := make(map[string] domain.Customer)
+	customers := make(map[string]domain.Customer)
 	if len(customerId) > 0 {
-		customerDb, _ :=j.customerRepository.FindByIDs(ctx, customerId)
+		customerDb, _ := j.customerRepository.FindByIDs(ctx, customerId)
 		for _, v := range customerDb {
 			customers[v.ID] = v
 		}
 	}
 
-	books := make(map[string] domain.Book)
+	books := make(map[string]domain.Book)
 	if len(bookId) > 0 {
 		bookDb, _ := j.bookRepository.FindByIDs(ctx, bookId)
 		for _, v := range bookDb {
@@ -116,9 +119,9 @@ func (j journalService) Index(ctx context.Context, se domain.JournalSearch) ([]d
 		book := dto.BookData{}
 		if v2, e := books[v.BookId]; e {
 			book = dto.BookData{
-				Id: v2.Id,
-				Isbn: v2.Isbn,
-				Title: v2.Title,
+				Id:          v2.Id,
+				Isbn:        v2.Isbn,
+				Title:       v2.Title,
 				Description: v2.Description,
 			}
 		}
@@ -126,21 +129,19 @@ func (j journalService) Index(ctx context.Context, se domain.JournalSearch) ([]d
 		customer := dto.CustomerData{}
 		if v2, e := customers[v.CustomerId]; e {
 			customer = dto.CustomerData{
-				ID: v2.ID,
+				ID:   v2.ID,
 				Code: v2.Code,
 				Name: v2.Name,
 			}
 		}
 
 		result = append(result, dto.JournalData{
-			Id: v.Id,
-			BookStock: v.StockCode,
-			Book: book,
-			Customer: customer,
-
+			Id:         v.Id,
+			BookStock:  v.StockCode,
+			Book:       book,
+			Customer:   customer,
 			BorrowedAt: v.BorrowedAt.Time.String(),
 			ReturnedAt: v.ReturnedAt.Time.String(),
-
 		})
 	}
 
@@ -150,10 +151,10 @@ func (j journalService) Index(ctx context.Context, se domain.JournalSearch) ([]d
 
 // Return implements domain.JournalService.
 func (j journalService) Return(ctx context.Context, req dto.ReturnJournalRequest) error {
-	
+
 	journal, err := j.journalRepository.FindById(ctx, req.JournalId)
 	if err != nil {
-		return  err
+		return err
 	}
 
 	if journal.Id == "" {
@@ -178,6 +179,26 @@ func (j journalService) Return(ctx context.Context, req dto.ReturnJournalRequest
 	journal.Status = domain.JournalStatusCompled
 	journal.ReturnedAt = sql.NullTime{Valid: true, Time: time.Now()}
 
-	return j.journalRepository.Update(ctx, &journal)
+	err = j.journalRepository.Update(ctx, &journal)
+	if err != nil {
+		return err
+	}
+
+	hoursLate := time.Now().Sub(journal.DueAt.Time).Hours()
+	if hoursLate >= 24 {
+		daysLate := int(hoursLate / 24)
+		charge := domain.Charge{
+			Id:           uuid.NewString(),
+			JournalId:    journal.Id,
+			DaysLate:     daysLate,
+			DailyLateFee: 5000,
+			Total:        5000 * daysLate,
+			UserId:       req.UserId,
+			CreatedAt:    sql.NullTime{Valid: true, Time: time.Now()},
+		}
+		err = j.chargeRepository.Save(ctx, &charge)
+	}
+
+	return err
 
 }

@@ -35,12 +35,13 @@ func main() {
 	bookStockRepository := repository.NewBookStock(db)
 	journalRepository := repository.NewJournal(db)
 	mediaRepository := repository.NewMedia(db)
+	chargeRepository := repository.NewCharge(db)
 
 	customerService := service.NewCustomer(customerRepository)
 	authService := service.NewAuth(cnf, userRepository)
 	bookService := service.NewBook(cnf, bookRepository, bookStockRepository, mediaRepository)
 	bookStockService := service.NewBookStock(bookRepository, bookStockRepository)
-	journalService := service.NewJournal(journalRepository, bookRepository, bookStockRepository, customerRepository)
+	journalService := service.NewJournal(journalRepository, bookRepository, bookStockRepository, customerRepository, chargeRepository)
 	mediaService := service.NewMedia(cnf, mediaRepository)
 	
 
