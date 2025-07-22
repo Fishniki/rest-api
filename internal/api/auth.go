@@ -22,6 +22,7 @@ func NewAuth(app *fiber.App, authService domain.AuthService) {
 
 	app.Post("/auth", aa.Login)
 	app.Post("/register", aa.Register)
+	app.Get("/auth/me", aa.Me)
 }
 
 func (aa authApi) Login(ctx *fiber.Ctx) error {
@@ -67,4 +68,46 @@ func (aa authApi) Register(ctx *fiber.Ctx) error {
 
 	return ctx.Status(http.StatusCreated).
 			JSON(dto.CreateResponsSucces("data berhasil terkirim"))
+}
+
+
+func (aa authApi) Me(ctx *fiber.Ctx) error {
+	c, cancel := context.WithTimeout(ctx.Context(), 10*time.Second)
+	defer cancel()
+
+	// Ambil token dari header Authorization
+	authHeader := ctx.Get("Authorization")
+	if authHeader == "" {
+		return ctx.Status(http.StatusUnauthorized).
+			JSON(dto.CreateResponsError("Authorization header missing"))
+	}
+
+	tokenStr := utility.ExtractToken(authHeader)
+	if tokenStr == "" {
+		return ctx.Status(http.StatusUnauthorized).
+			JSON(dto.CreateResponsError("Token tidak valid"))
+	}
+
+	// Verifikasi token
+	claims, err := utility.ParseToken(tokenStr)
+	if err != nil {
+		return ctx.Status(http.StatusUnauthorized).
+			JSON(dto.CreateResponsError("Token tidak valid: " + err.Error()))
+	}
+
+	userID, ok := claims["id"].(string)
+	if !ok {
+		return ctx.Status(http.StatusUnauthorized).
+			JSON(dto.CreateResponsError("ID tidak ditemukan dalam token"))
+	}
+
+	// Ambil data user
+	user, err := aa.authService.GetUserById(c, userID)
+	if err != nil {
+		return ctx.Status(http.StatusInternalServerError).
+			JSON(dto.CreateResponsError("Gagal mengambil data pengguna: " + err.Error()))
+	}
+
+	return ctx.Status(http.StatusOK).
+		JSON(dto.CreateResponsSucces(user))
 }

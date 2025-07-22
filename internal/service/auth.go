@@ -18,7 +18,6 @@ type AuthService struct {
 	userRepository domain.UserRepository
 }
 
-
 func NewAuth(cnf *config.Config, userRepository domain.UserRepository) domain.AuthService {
 	return AuthService{
 		conf:           cnf,
@@ -70,13 +69,13 @@ func (a AuthService) Register(ctx context.Context, req dto.RegisterRequest) erro
 
 	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(req.Password), bcrypt.DefaultCost)
 	if err != nil {
-		return  errors.New("Gagal menghash password")
+		return errors.New("Gagal menghash password")
 	}
-	
+
 	user := domain.User{
-		Id: uuid.NewString(),
-		Name: req.Name,
-		Email: req.Email,
+		Id:       uuid.NewString(),
+		Name:     req.Name,
+		Email:    req.Email,
 		Password: string(hashedPassword),
 	}
 
@@ -86,4 +85,11 @@ func (a AuthService) Register(ctx context.Context, req dto.RegisterRequest) erro
 
 	return nil
 
+}
+
+
+
+// FindById implements domain.AuthService.
+func (a AuthService) GetUserById(ctx context.Context, id string) (domain.User, error) {
+	return  a.userRepository.FindById(ctx, id)
 }

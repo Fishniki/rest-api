@@ -13,6 +13,7 @@ type UserRepository struct {
 }
 
 
+
 func NewUser(con *sql.DB) domain.UserRepository {
 	return &UserRepository{
 		db: goqu.New("default", con),
@@ -30,9 +31,19 @@ func (u UserRepository) FindByEmail(ctx context.Context, email string) (usr doma
 
 // Save implements domain.UserRepository.
 func (u *UserRepository) Save(ctx context.Context, req *domain.User) error {
-	
+
 	executor := u.db.Insert("user").Rows(req).Executor()
 	_, err := executor.ExecContext(ctx)
 	return err
+
+}
+
+
+// FindById implements domain.UserRepository.
+func (u *UserRepository) FindById(ctx context.Context, id string) (usr domain.User, err error) {
+	
+	dataset := u.db.From("user").Where(goqu.C("id").Eq(id))
+	_, err = dataset.ScanStructContext(ctx, &usr)
+	return
 
 }
