@@ -31,4 +31,4 @@ func TransLateTag(fd validator.FieldError) string {
 	}
 
 	return "Validasi Gagal"
-}
+}z
