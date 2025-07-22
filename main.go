@@ -12,6 +12,7 @@ import (
 
 	jwtMid "github.com/gofiber/contrib/jwt"
 	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v2/middleware/cors"
 )
 
 func main() {
@@ -19,6 +20,11 @@ func main() {
 	db := connection.GetDatabase(cnf.Database)
 
 	app := fiber.New()
+	app.Use(cors.New(cors.Config{
+		AllowOrigins: "http://localhost:3000",
+		AllowMethods: "GET,POST,HEAD,PUT,DELETE,OPTIONS",
+		AllowHeaders: "Origin, Content-Type, Accept, Authorization",
+	}))
 	jwtMid := jwtMid.New(jwtMid.Config{
 		SigningKey: jwtMid.SigningKey{
 			Key: []byte(cnf.Jwt.Key),
